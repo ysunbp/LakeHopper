@@ -570,7 +570,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
     sampled_idx = torch.tensor([])
     overall_identified_col_idx = []
     
-    if hp.design == 3: # 每一轮identify weak然后fine-tune 5 epochs
+    if hp.design == 3:
         print('checking with lr = ', hp.w_lr)
         finetune_epochs = 0
         swf1, maf1, _ = LLM_evaluate(model, test_data_iter, model_save_path, is_test=True, cur_best_loss=100)
@@ -820,5 +820,5 @@ if __name__ == '__main__':
     torch.save(model.state_dict(), hp.save_path)
     annotation_dataset = SupAnnDataset(semtab_training_path, lm=hp.lm, size=None, max_length = hp.max_len) # used for sample queries from GPT
     previous_dataloaders = [transfer_training_dataloader]
-    transfer_training_process(hp, semtab_training_path, semtab_validation_path, semtab_testing_path, label_dict, model, annotation_dataset, exploring_rounds=hp.exploring_rounds, total_finetune_epochs=5, previous_dataloaders=previous_dataloaders)
+    transfer_training_process(hp, semtab_training_path, semtab_validation_path, semtab_testing_path, label_dict, model, annotation_dataset, exploring_rounds=hp.exploring_rounds, total_finetune_epochs=20, previous_dataloaders=previous_dataloaders)
     
