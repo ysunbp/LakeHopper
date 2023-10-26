@@ -616,6 +616,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
 
         finetune_flag = True
         if finetune_flag:
+            model.load_state_dict(torch.load('../checkpoints/doduo-p2v-cur_best.pkl'))
             full_set = SupAnnDatasetIndex(csv_data_path, lm='bert', max_length = 128)
             full_dataset_iter = data.DataLoader(dataset=full_set,
                                                 batch_size=8,
