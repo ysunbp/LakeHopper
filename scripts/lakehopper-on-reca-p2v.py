@@ -732,7 +732,7 @@ if __name__ == '__main__':
     with open(dict_path, 'r', encoding='utf-8') as file:
         label_dict = json.load(file)
 
-    public_bi_path = '../checkpoints/out_model_p2v'
+    public_bi_path = '../checkpoints/out_model_p2v' # need to run ./reca/train-publicbi.py if you want to retrain on publicbi
     model.load_state_dict(torch.load(public_bi_path))
     sato_test_path = '../data/RECA/2.jsonl'
     testing_set = SupAnnDatasetIndex(sato_test_path, max_length = 128, size=500, pickle_path = '../data/RECA/K2.pkl')
