@@ -3,7 +3,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = 'X'
 import argparse
 import torch
 import numpy as np
-from dataset_doduo import SupAnnDataset, SupAnnDatasetIndex
+from dataset_sudowoodo import SupAnnDataset, SupAnnDatasetIndex
 from skeleton import base_model
 from sklearn.metrics import f1_score
 from torch.utils import data
@@ -73,6 +73,7 @@ def sample_cur_dataset_idx(current_exploration_round, dataset_length, sample_siz
         sampled_data_path (str): The already sampled indices.
         random_state (optional int): The random seed.
     Output:
+        out_sampled_idx (1-d tensor): The updated already sampled table indices starting from the current round.
         cur_round_idx (1-d tensor): The sampled table ids in the current round.
     
     This function sample the table ids for current round of query.
@@ -136,7 +137,7 @@ def get_annotation(model, annotation_dataset, label_dict, round, cur_round_idx, 
 
     with open(out_path, 'a', newline='') as file:
         csv_writer = csv.writer(file)
-        csv_writer.writerow(['table_id','col_idx','ground_truth','gt_id','prediction','pred_id','should be','llm_decision','reasoning','data','dataset_tab_idx'])  # 写入表头
+        csv_writer.writerow(['table_id','ground_truth','gt_id','prediction','pred_id','should be','llm_decision','reasoning','data','col_idx'])  # 写入表头
         for i, item in enumerate(tqdm(annotation_iter)):
             if not i in cur_round_idx:
                 continue
@@ -148,11 +149,13 @@ def get_annotation(model, annotation_dataset, label_dict, round, cur_round_idx, 
             prediction = model(x, clsA)
             predicted_label = torch.argmax(prediction, dim=1)
             labels.append(list(y.detach().numpy()))
+            
             predicted_labels += predicted_label.detach().cpu().numpy().tolist()
             del x
-            table_width = len(raw[0])
+
+            table_width = len(raw)
             for col_idx in range(table_width):
-                cur_col = raw[0].iloc[col_idx]
+                cur_col = raw[0]
                 cur_label_idx = predicted_labels[col_idx]
                 cur_label = inverted_dict[str(cur_label_idx)]
                 truncated_col = cur_col.strip()[:150]
@@ -187,7 +190,7 @@ def get_annotation(model, annotation_dataset, label_dict, round, cur_round_idx, 
                         else:
                             llm_decision = 3
                             reasoning = response
-                    csv_writer.writerow([table_id, col_idx, inverted_dict[str(labels[0][col_idx])], labels[0][col_idx], cur_label, cur_label_idx, gt_decision, llm_decision, reasoning, cur_col, i])
+                    csv_writer.writerow([table_id, inverted_dict[str(labels[0][col_idx])], labels[0][col_idx], cur_label, cur_label_idx, gt_decision, llm_decision, reasoning, cur_col, i])
 
                 else:
                     response = generateResponse(composeTemplate(intro, type_set, truncated_col, cur_label))
@@ -203,10 +206,9 @@ def get_annotation(model, annotation_dataset, label_dict, round, cur_round_idx, 
                         reasoning = response
                     if softmax_score >= confidence:
                         llm_decision = 2
-                    csv_writer.writerow([table_id, col_idx, inverted_dict[str(labels[0][col_idx])], labels[0][col_idx], cur_label, cur_label_idx, gt_decision, llm_decision, reasoning, cur_col, i])
+                    csv_writer.writerow([table_id, inverted_dict[str(labels[0][col_idx])], labels[0][col_idx], cur_label, cur_label_idx, gt_decision, llm_decision, reasoning, cur_col, i])
 
-
-def identify_indices_from_csv(csv_path, table_col_mapping_dict):
+def identify_indices_from_csv(csv_path):
 
     '''
     Input:
@@ -224,13 +226,17 @@ def identify_indices_from_csv(csv_path, table_col_mapping_dict):
             if i == 0:
                 continue
             else:
-                llm_decision = int(row[7])
+                llm_decision = int(row[6])
                 if llm_decision == 0 or llm_decision == 3:
-                    table_idx = int(row[10])
-                    col_idx = int(row[1])
-                    identified_indices.append(table_col_mapping_dict[table_idx][col_idx])
+                    identified_indices.append(int(row[9]))
+    
+        if len(identified_indices) == 0: 
+            row_idx = random.choice(range(1,len(csv.reader(f, skipinitialspace=True))))
+            row = csv.reader(f, skipinitialspace=True)[row_idx]
+            identified_indices.append(int(row[9]))
+            print('No wrong answer')
+    
     f.close()
-
     return identified_indices
 
 def random_select_samples(cluster_values, to_be_sampled, identified):
@@ -291,7 +297,7 @@ def identify_weak_columns(cluster_values, weak_sample_size, identified_indices):
             sample_size_each_cluster = sample_ratio - 1
             for cluster_item in cluster_values:
                 removed_identified = list(set(cluster_item)-set(identified_indices))
-                num_identified_samples = len(cluster_item) - len(removed_identified)
+                num_identified_samples = len(cluster_item) - len(removed_identified)           
                 num_sample_cur_cluster = num_identified_samples*sample_size_each_cluster
                 if num_sample_cur_cluster >= len(removed_identified):
                     out_indices += removed_identified
@@ -343,42 +349,19 @@ def LLM_transfer_clustering(model, dataset, current_exploration_round, query_siz
 
     cur_round_idx = sample_cur_dataset_idx(current_exploration_round, dataset_size, query_size, sampled_data_path, random_state=42)
 
-    remaining_indices = torch.arange(len(dataset))
-    for r in range(current_exploration_round):
-        with open(sampled_data_path+'sampled_tensor_'+str(r)+'.pkl', 'rb') as file:
-            current_sampled = pickle.load(file)
-        combined = torch.cat((remaining_indices,current_sampled),dim=0)
-        uniques, counts = combined.unique(return_counts = True)
-        remaining_indices = uniques[counts==1]
-        del current_sampled
-        gc.collect()
-    unlabeled_idx = remaining_indices.tolist()
-
-    col_table_mapping_dict = {}
-    table_col_mapping_dict = {}
-
     for i, item in enumerate(tqdm(data_iter)):
-        if i in unlabeled_idx:
-            x, y, clsA, _, _ = item
-            prediction = model(x, clsA)
-            for cur_idx in range(len(prediction)):
-                softmax_score = soft_fn(prediction[cur_idx]).cpu().detach().numpy().tolist()
-                label_set.append(y[cur_idx].item())
-                softmax_scores_cluster.append(softmax_score)
-
-                col_table_mapping_dict[len(softmax_scores_cluster)-1] = (i, cur_idx)
-                # maps column idx to table idx and its idx in the table in the dataset
-                if i in table_col_mapping_dict.keys():
-                    table_col_mapping_dict[i].append(len(softmax_scores_cluster)-1)
-                else:
-                    table_col_mapping_dict[i] = [len(softmax_scores_cluster)-1]
-                # maps table idx to the list of column idxs it contains for the use of calling query GPT-4 and transforming the table idx to column idx in the output
-    
+        x, y, clsA, _, _ = item
+        prediction = model(x, clsA)
+        for cur_idx in range(len(prediction)):
+            softmax_score = soft_fn(prediction[cur_idx]).cpu().detach().numpy().tolist()
+            label_set.append(y[cur_idx].item())
+            softmax_scores_cluster.append(softmax_score)
+            # maps table idx to the list of column idxs it contains for the use of calling query GPT-4 and transforming the table idx to column idx in the output
     csv_path = '../gpt-logs/sudo-p2v-' + str(round)+'.csv'
     
     if not os.path.exists(csv_path):
         get_annotation(model, dataset, label_dict, round, cur_round_idx, csv_path, confidence=0.9, mode='trust')
-    identified_indices = identify_indices_from_csv(csv_path, table_col_mapping_dict)  # need to be updated based on the output of the GPT query results. Identified indices are the indices for columns.
+    identified_indices = identify_indices_from_csv(csv_path)  # need to be updated based on the output of the GPT query results. Identified indices are the indices for columns.
     #######################################################################################################
 
     num_clusters = len(list(set(label_set)))
@@ -399,10 +382,10 @@ def LLM_transfer_clustering(model, dataset, current_exploration_round, query_siz
         if not str(kmeans_dict[cluster_key]) in cluster_values_str:    
             cluster_values.append(kmeans_dict[cluster_key])
             cluster_values_str.append(str(kmeans_dict[cluster_key]))
-
+    
     indentified_cluster_col_idx = identify_weak_columns(cluster_values, sample_size, identified_indices)
 
-    return cur_round_idx, indentified_cluster_col_idx, col_table_mapping_dict
+    return cur_round_idx, indentified_cluster_col_idx
 
 def metric_fn(preds, labels):
 
@@ -448,7 +431,6 @@ def LLM_finetuning(model, dataset_iter, valid_iter, model_save_path, optimizer, 
     
     if len(previous_dataloaders) == 0: # pre-train mode
         previous_dataloaders.append(dataset_iter)
-
     print('---------------------------------------')
     training_times = []
     for epoch in range(epochs):
@@ -487,7 +469,7 @@ def LLM_finetuning(model, dataset_iter, valid_iter, model_save_path, optimizer, 
                 cur_best_model = model
         else:
             cur_best_model = model
-    print('training times', np.mean(training_times), training_times)
+    print('training-times', np.mean(training_times), training_times)
     return cur_best_model, cur_best
 
 def LLM_evaluate(model, iter, model_save_path, is_test=False, cur_best_loss=100):
@@ -542,7 +524,7 @@ def LLM_evaluate(model, iter, model_save_path, is_test=False, cur_best_loss=100)
     return f1_scores['weighted_f1'], f1_scores['macro_f1'], cur_best_loss
 
 def transfer_training_process(hp, csv_data_path, validation_path, test_path, label_dict, model, dataset, exploring_rounds, total_finetune_epochs, previous_dataloaders = []):
-    
+
     sampled_data_path = '../sampled_data/sudo-p2v/'
     validation_set = SupAnnDatasetIndex(validation_path, lm='bert', size=10, max_length = 128, size_ratio=True)
     validation_data_iter = data.DataLoader(dataset=validation_set,
@@ -577,7 +559,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
         for round in range(exploring_rounds):
             print('current round', round)
             overall_identified_col_idx = []
-            current_round_idx, indentified_cluster_col_idx, col_table_mapping_dict = LLM_transfer_clustering(model, dataset, round, hp.query_size, hp.sample_size, csv_data_path, label_dict, round, sampled_data_path)
+            current_round_idx, indentified_cluster_col_idx = LLM_transfer_clustering(model, dataset, round, hp.query_size, hp.sample_size, csv_data_path, label_dict, round, sampled_data_path)
 
             with open(sampled_data_path+'sampled_tensor_'+str(round)+'.pkl', 'wb') as file:
                 pickle.dump(current_round_idx, file)
@@ -585,7 +567,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
                 current_round_idx = pickle.load(file)
             overall_identified_col_idx += indentified_cluster_col_idx
 
-            selected_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=None, max_length = 128, cur_selected_indices=overall_identified_col_idx, col_tab_map=col_table_mapping_dict)
+            selected_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=None, max_length = 128, cur_selected_indices=overall_identified_col_idx)
             selected_data_iter = data.DataLoader(dataset=selected_dataset,
                                             batch_size=8,
                                             shuffle=True,
@@ -607,19 +589,16 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
             if cur_best_val_loss < cur_best:
                 cur_best = cur_best_val_loss
                 no_improve = 0
-                torch.save(model.state_dict(), '../checkpoints/sudo-p2v-cur_best.pkl')
             else:
                 no_improve += 1
             
             if no_improve >= early_stop:
                 print('The LLM transfer knowledge is used up! Shift to fine-tuning mode.')
-                finetune_flag = True
-                torch.save(model.state_dict(), '../checkpoints/sudo-p2v-stop-at-'+str(round)+'-'+'.pkl')
+                torch.save(model.state_dict(), '../checkpoints/sudo-p2v-cur_best.pkl')
                 break
-
+            
         finetune_flag = True
         if finetune_flag:
-            model.load_state_dict(torch.load('../checkpoints/sudo-p2v-cur_best.pkl'))
             full_set = SupAnnDatasetIndex(csv_data_path, lm='bert', max_length = 128)
             full_dataset_iter = data.DataLoader(dataset=full_set,
                                                 batch_size=8,
@@ -635,7 +614,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
         cur_best = 100
         optimizer = AdamW(model.parameters(), lr=hp.w_lr)
         previous_dataloaders = []
-        current_training_set = SupAnnDatasetIndex(csv_data_path, lm='bert', size=2645, max_length = 128, size_column=True)
+        current_training_set = SupAnnDatasetIndex(csv_data_path, lm='bert', size=None, max_length = 128, size_column=True)
         current_dataset_iter = data.DataLoader(dataset=current_training_set,
                                                 batch_size=8,
                                                 shuffle=False,
@@ -653,6 +632,7 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
         swf1, maf1, _ = LLM_evaluate(model, test_data_iter, model_save_path, is_test=True, cur_best_loss=100)
         print('Support Weighted F1 score is:', swf1, 'Macro Average F1 score is:', maf1)
         out_model = model
+    
     return out_model
 
 if __name__ == '__main__':
@@ -679,6 +659,7 @@ if __name__ == '__main__':
     parser.add_argument("--exploring_rounds", type=int, default=50)
     parser.add_argument("--save_path", type=str, default='../checkpoints/sudo-p2v.pkl')
 
+
     hp = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -689,7 +670,7 @@ if __name__ == '__main__':
     
     annotation_dataset = SupAnnDataset(csv_sato_train_path, lm=hp.lm, size=None, max_length = hp.max_len)
 
-    dict_path = '/export/data/ysunbp/CCTA/SimTAB/sato_data/label.json'
+    dict_path = '../data/VizNet/label.json'
     with open(dict_path, 'r', encoding='utf-8') as file:
         label_dict = json.load(file)
     
@@ -719,13 +700,16 @@ if __name__ == '__main__':
                                         collate_fn=publicbi_test_dataset.pad)
     optimizer = AdamW(model.parameters(), lr=hp.lr)
     model = LLM_finetuning(model, training_dataset_iter, valid_iter, hp.save_path, optimizer, hp.n_epochs)
+    # After this point, we need to load the '../checkpoints/base-sudowoodo-p2v.pkl' in the sudowoodo code to get the sudowoodoed model at '../checkpoints/base-sudowoodo-p2v-after_contrast.pkl', uncomment the code below and comment the code from line 684 to 702 after you complete the finetuning with sudowoodo code
     
-
+    
+    '''
     if not os.path.exists('../checkpoints/base-sudowoodo-p2v.pkl'):
+        model.load_state_dict(torch.load('../checkpoints/base-sudowoodo-p2v-after_contrast.pkl'))
         ### Fine-tune on sato ###
         print('Start initial fine-tuning on Sato')
-        transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=50, max_length = 128)
-
+        transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=114, max_length = 128)
+        
         transfer_training_dataloader = data.DataLoader(dataset=transfer_finetune_dataset,
                                             batch_size=8,
                                             shuffle=True,
@@ -743,7 +727,7 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load('../checkpoints/base-sudowoodo-p2v.pkl'))
         ### transfering knowledge on sato ###
     
-        transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=50, max_length = 128)
+        transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=114, max_length = 128)
         transfer_training_dataloader = data.DataLoader(dataset=transfer_finetune_dataset,
                                             batch_size=8,
                                             shuffle=True,
@@ -755,7 +739,7 @@ if __name__ == '__main__':
     torch.save(model.state_dict(), hp.save_path)
 
     transfer_training_process(hp, csv_data_path, validation_path, test_path, label_dict, model, annotation_dataset, exploring_rounds=hp.exploring_rounds, total_finetune_epochs=5, previous_dataloaders=previous_dataloaders)
-
+    '''
     
 
     
