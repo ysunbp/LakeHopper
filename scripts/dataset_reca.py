@@ -22,7 +22,7 @@ class SupAnnDataset(data.Dataset):
 
     def __init__(self,
                     data_path,
-                    label_path='../data/VizNet/label.json', max_length=512, size=None, pickle_path = '../data/RECA/K0.pkl'):
+                    label_path='../data/Semtab2019/semtab_labels.json', max_length=512, size=None, pickle_path = '../data/RECA/semtab-reca-train.pkl'):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.max_length = max_length
         self.size = size # dataset size
@@ -31,12 +31,10 @@ class SupAnnDataset(data.Dataset):
         self.rel = []
         self.sub = []
         self.raw = []
-
-        
         
         with open(label_path, 'r') as dict_in:
             label_dict = json.load(dict_in)
-            
+        
         labels = []
         out_data = []
         rel_cols = []
@@ -45,7 +43,7 @@ class SupAnnDataset(data.Dataset):
         with open(data_path, "r+", encoding="utf8") as jl:
             for item in tqdm(jsonlines.Reader(jl)):
                 label_idx = int(label_dict[item['label']])
-                target_data = np.array(item['col'])
+                target_data = np.array(item['content'])[:,int(item['target'])]
                 data = ""
                 for i, cell in enumerate(target_data):
                     data+=cell
@@ -54,18 +52,17 @@ class SupAnnDataset(data.Dataset):
                 cur_sub_rel_cols = []
                 for rel_col in item['related_cols']:
                     cur_rel_cols.append(np.array(rel_col))
-                for sub_rel_col in item['sub-related_cols']:
+                for sub_rel_col in item['sub_related_cols']:
                     cur_sub_rel_cols.append(np.array(sub_rel_col))
-                
+                #
                 out_col_string = data[:150]
+                
                 raw_column_content.append(out_col_string)
                 sub_cols.append(cur_sub_rel_cols)
                 rel_cols.append(cur_rel_cols)
                 labels.append(label_idx)
                 out_data.append(data)
-                
 
-        
         target_tokens = []
         rel_tokens = []
         sub_tokens = []
@@ -207,17 +204,17 @@ class SupAnnDataset(data.Dataset):
         return token_ids, rel_ids, sub_ids, labels, raw
 
 
-class SupAnnDatasetIndexSato(data.Dataset):
+class SupAnnDatasetIndex(data.Dataset):
     """dataset for the evaluation"""
 
     def __init__(self,
                     data_path,
-                    label_path='../data/VizNet/label.json', 
+                    label_path='../data/Semtab2019/semtab_labels.json', 
                     max_length=512, 
                     size=None, 
                     cur_selected_indices=None,
                     size_ratio=False,
-                    size_column=False, pickle_path='../data/RECA/K0.pkl'):
+                    size_column=False, pickle_path = '../data/RECA/semtab-reca-train.pkl'):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.max_length = max_length
         self.size = size # dataset size
@@ -238,7 +235,7 @@ class SupAnnDatasetIndexSato(data.Dataset):
         with open(data_path, "r+", encoding="utf8") as jl:
             for item in tqdm(jsonlines.Reader(jl)):
                 label_idx = int(label_dict[item['label']])
-                target_data = np.array(item['col'])
+                target_data = np.array(item['content'])[:,int(item['target'])]
                 data = ""
                 for i, cell in enumerate(target_data):
                     data+=cell
@@ -247,16 +244,21 @@ class SupAnnDatasetIndexSato(data.Dataset):
                 cur_sub_rel_cols = []
                 for rel_col in item['related_cols']:
                     cur_rel_cols.append(np.array(rel_col))
-                for sub_rel_col in item['sub-related_cols']:
+                for sub_rel_col in item['sub_related_cols']:
                     cur_sub_rel_cols.append(np.array(sub_rel_col))
+                table = np.array(item['content'])
+                col_idx = int(item['target'])
+                column_list = table[:,col_idx]
+                out_col_string = ''
+                for cell in column_list:
+                    out_col_string += cell
+                out_col_string = out_col_string[:150]
                 
-                out_col_string = data[:150]
                 raw_column_content.append(out_col_string)
                 sub_cols.append(cur_sub_rel_cols)
                 rel_cols.append(cur_rel_cols)
                 labels.append(label_idx)
                 out_data.append(data)
-                
 
         
         target_tokens = []
@@ -327,7 +329,7 @@ class SupAnnDatasetIndexSato(data.Dataset):
 
         if (size is not None) and size_ratio:
             skf = StratifiedKFold(n_splits=size) # use 1/10 data for validation/testing; here we use size to represent the ratio
-            for train_index, validation_index in skf.split(self.labels, self.labels):
+            for train_index, validation_index in skf.split(label_list, label_list):
                 splitted_indices = validation_index
                 break
             out_labels = []
@@ -441,9 +443,9 @@ class SupAnnDatasetIndexSato(data.Dataset):
 
 
 if __name__ == '__main__':
-    semtab_label_path = 'xxx/label.json'
-    semtab_training_path = 'xxx/1.jsonl'
-    annotation_dataset = SupAnnDataset(semtab_training_path, semtab_label_path, size=None, max_length = 128, pickle_path = '/export/data/ysunbp/LLM-veri/data/reca-pickle/K1.pkl')
+    semtab_label_path = 'xxx/semtab_labels.json'
+    semtab_training_path = 'xxx/train.jsonl'
+    annotation_dataset = SupAnnDataset(semtab_training_path, semtab_label_path, size=None, max_length = 512)
     #SupAnnDataset(validation_path, lm='bert', max_length = 128)
     annotation_iter = data.DataLoader(dataset=annotation_dataset,
                                     batch_size=1,
