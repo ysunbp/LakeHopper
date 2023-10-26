@@ -577,6 +577,8 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
             print('current round', round)
             overall_identified_col_idx = []
             current_round_idx, indentified_cluster_col_idx, col_table_mapping_dict = LLM_transfer_clustering(model, dataset, round, hp.query_size, hp.sample_size, csv_data_path, label_dict, round, sampled_data_path)
+            with open(sampled_data_path+'sampled_tensor_'+str(round)+'.pkl', 'wb') as file:
+                pickle.dump(current_round_idx, file)
             with open(sampled_data_path+'sampled_tensor_'+str(round)+'.pkl', 'rb') as file:
                 current_round_idx = pickle.load(file)
             overall_identified_col_idx += indentified_cluster_col_idx
@@ -587,7 +589,8 @@ def transfer_training_process(hp, csv_data_path, validation_path, test_path, lab
                                             shuffle=True,
                                             num_workers=0,
                                             collate_fn=selected_dataset.pad)
-
+            with open(sampled_data_path+'round-'+str(round)+'-selected.pkl', 'wb') as file:
+                pickle.dump(selected_data_iter, file)
             with open(sampled_data_path+'round-'+str(round)+'-selected.pkl', 'rb') as file:
                 selected_data_iter = pickle.load(file)
             previous_dataloaders.append(selected_data_iter)
