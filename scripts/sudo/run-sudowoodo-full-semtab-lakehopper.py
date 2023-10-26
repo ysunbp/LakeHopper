@@ -12,7 +12,7 @@ from sudowoodo_dataset_semtab import CADataset, SupCADataset
 from dataset import SupDataset
 
 from torch.utils import data
-from train_script_stru import train 
+from train_script_stru import train # remember to modify the line 119 of train_script_stru
 
 csv_all_path = './sudowoodo_semtab_all.csv'
 csv_path = './sudowoodo_semtab_'
