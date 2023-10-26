@@ -820,5 +820,5 @@ if __name__ == '__main__':
     torch.save(model.state_dict(), hp.save_path)
     annotation_dataset = SupAnnDataset(semtab_training_path, lm=hp.lm, size=None, max_length = hp.max_len) # used for sample queries from GPT
     previous_dataloaders = [transfer_training_dataloader]
-    transfer_training_process(hp, semtab_training_path, semtab_validation_path, semtab_testing_path, label_dict, model, annotation_dataset, exploring_rounds=hp.exploring_rounds, total_finetune_epochs=20, previous_dataloaders=previous_dataloaders)
+    transfer_training_process(hp, semtab_training_path, semtab_validation_path, semtab_testing_path, label_dict, model, annotation_dataset, exploring_rounds=hp.exploring_rounds, total_finetune_epochs=5, previous_dataloaders=previous_dataloaders)
     
