@@ -115,42 +115,13 @@ def train(trainset_nolabel, train_set, valid_set, test_set, hp):
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = SimTAB(hp, device=device, lm=hp.lm)
-    base_model_path = '/export/data/ysunbp/LLM-veri/scripts/baselines/sudowoodo/after_contrast_transfer_prior_sato.pkl'
-    #if os.path.exists('/export/data/ysunbp/LLM-veri/scripts/baselines/sudowoodo/after_contrast.pkl'):
-    #    model.load_state_dict(torch.load('/export/data/ysunbp/LLM-veri/scripts/baselines/sudowoodo/after_contrast.pkl'))
-    #base_model_path = '/export/data/ysunbp/LLM-veri/checkpoints/sato2semtab/base-semtab-finetuned.pkl' # base pre-trained on sato and semtab for 25 tables
+    base_model_path = '../checkpoints/base-sudowoodo-p2v.pkl'
+    #base_model_path = '../checkpoints/base-sudowoodo-v2s.pkl' # You need to uncomment this line if you are using the v2s
     model.load_state_dict(torch.load(base_model_path))
-    '''source_label_path = '/export/data/ysunbp/CCTA/SimTAB/sato_data/label.json'
-    target_label_path = '/export/data/ysunbp/CCTA/SimTAB/semtab_data/semtab_labels.json'
-    with open(source_label_path, 'r', encoding='utf-8') as file:
-        source_label_dict = json.load(file)
-    with open(target_label_path, 'r', encoding='utf-8') as file:
-        label_dict = json.load(file)
-    base_model_path = '/export/data/ysunbp/CCTA/SimTAB/sato_checkpoints/checkpoint_sudowoodo_full_lakehopper:2e-05:5e-05.pkl'
-    source_labels = list(source_label_dict.keys())
-    target_labels = list(label_dict.keys())
-
-    updated_target_labels = [s.lower() for s in target_labels]
-    overlapping = list(set(updated_target_labels).intersection(set(source_labels)))
-    source2target_mapping = []
-    for item in overlapping:
-        source2target_mapping.append((int(source_label_dict[item]), int(label_dict[target_labels[updated_target_labels.index(item)]])))
-    pretrained_model_dict = torch.load(base_model_path)
-    current_model_dict = model.state_dict()
-    state_dict = {k:v for k, v in pretrained_model_dict.items() if k in list(pretrained_model_dict.keys())[:-2]}
-    current_model_dict.update(state_dict)
-    for s,t in source2target_mapping:
-        current_model_dict[list(pretrained_model_dict.keys())[-2]][t] = pretrained_model_dict[list(pretrained_model_dict.keys())[-2]][s]
-        current_model_dict[list(pretrained_model_dict.keys())[-1]][t] = pretrained_model_dict[list(pretrained_model_dict.keys())[-1]][s]
-    model.load_state_dict(current_model_dict)'''
-
-
-
 
     model = model.cuda()
     optimizer = AdamW(model.parameters(), lr=hp.lr)
-    optimizer_f = AdamW(model.parameters(), lr=hp.f_lr) # 更新optimizer为finetune
-    # scheduler空缺
+    optimizer_f = AdamW(model.parameters(), lr=hp.f_lr) 
     
     cur_best = 100
     
@@ -168,9 +139,7 @@ def train(trainset_nolabel, train_set, valid_set, test_set, hp):
                         print(f"    step: {i}, loss: {loss.item()}")
                     del loss
                 cur_best_model = model
-                #torch.save(model.state_dict(), '/export/data/ysunbp/LLM-veri/scripts/baselines/sudowoodo/after_contrast_transfer_prior.pkl')
-                #torch.save(model.state_dict(), '/export/data/ysunbp/LLM-veri/scripts/baselines/sudowoodo/after_contrast_transfer_prior_publicbi.pkl')
-
+                
             else: # TODO: should we freeze the embedding after self-supervise
                 model.train()
                 finetune(train_iter, model, optimizer_f, hp)
