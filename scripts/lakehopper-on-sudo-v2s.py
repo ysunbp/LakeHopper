@@ -707,8 +707,8 @@ if __name__ == '__main__':
     test_path = '../data/VizNet/test.csv'
 
     if not os.path.exists('../checkpoints/sudo-v2s-base.pkl'):
-        ### Pre-train on Sato ###
-        print('Start pretraining on Sato')
+        ### Pre-train on VizNet ###
+        print('Start pretraining on VizNet')
         sato_train_dataset = SupAnnDatasetIndex(csv_data_path, lm=hp.lm, size=None, max_length = hp.max_len)
         
         sato_valid_dataset = SupAnnDatasetIndex(validation_path, lm=hp.lm, size=500, max_length = hp.max_len)
@@ -736,7 +736,7 @@ if __name__ == '__main__':
         model, _ = LLM_finetuning(model, training_dataset_iter, valid_iter, hp.save_path, optimizer, hp.n_epochs)
         LLM_evaluate(model, test_iter, hp.save_path, is_test=True, cur_best_loss=100)
         torch.save(model.state_dict(), '../checkpoints/sudo-v2s-base.pkl')
-    # After this point, we need to load the '../checkpoints/sudo-v2s-base.pkl' in the sudowoodo code to get the sudowoodoed model at '../checkpoints/sudo-v2s-after_contrast_transfer_prior_sato.pkl', uncomment the code below and comment the code from line 709 to 738 after you complete the finetuning with sudowoodo code
+    # After this point, we need to load the '../checkpoints/sudo-v2s-base.pkl' in the ./sudo/run-sudowoodo-full-semtab-lakehopper.py to get the sudowoodoed model at '../checkpoints/sudo-v2s-after_contrast_transfer_prior_sato.pkl', uncomment the code below and comment the code from line 709 to 738 after you complete the finetuning with sudowoodo code
     '''
     semtab_testing_path = '../data/Semtab2019/semtab_test_0.csv'
     testing_set = SupAnnDatasetIndex(semtab_testing_path, lm='bert', max_length = 128)
@@ -788,7 +788,7 @@ if __name__ == '__main__':
         model = base_model(hp, device=device, lm=hp.lm) # reload the model on the target data lake
         model.load_state_dict(torch.load('../checkpoints/sudo-v2s-base-semtab-finetuned.pkl'))
        
-    ### transfering knowledge on sato ###
+    ### transfering knowledge on Semtab ###
     print('Storing model at: ', hp.save_path)
     torch.save(model.state_dict(), hp.save_path)
     annotation_dataset = SupAnnDataset(semtab_training_path, lm=hp.lm, size=None, max_length = hp.max_len) # used for sample queries from GPT

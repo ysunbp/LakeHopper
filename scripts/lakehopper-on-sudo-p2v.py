@@ -700,14 +700,14 @@ if __name__ == '__main__':
                                         collate_fn=publicbi_test_dataset.pad)
     optimizer = AdamW(model.parameters(), lr=hp.lr)
     model = LLM_finetuning(model, training_dataset_iter, valid_iter, hp.save_path, optimizer, hp.n_epochs)
-    # After this point, we need to load the '../checkpoints/base-sudowoodo-p2v.pkl' in the sudowoodo code to get the sudowoodoed model at '../checkpoints/base-sudowoodo-p2v-after_contrast.pkl', uncomment the code below and comment the code from line 684 to 702 after you complete the finetuning with sudowoodo code
+    # After this point, we need to load the '../checkpoints/base-sudowoodo-p2v.pkl' in the ./sudo/run-sudowoodo-full-lakehopper.py to get the sudowoodoed model at '../checkpoints/base-sudowoodo-p2v-after_contrast.pkl', uncomment the code below and comment the code from line 684 to 702 after you complete the finetuning with sudowoodo code
     
     
     '''
     if not os.path.exists('../checkpoints/base-sudowoodo-p2v.pkl'):
         model.load_state_dict(torch.load('../checkpoints/base-sudowoodo-p2v-after_contrast.pkl'))
-        ### Fine-tune on sato ###
-        print('Start initial fine-tuning on Sato')
+        ### Fine-tune on VizNet ###
+        print('Start initial fine-tuning on VizNet')
         transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=114, max_length = 128)
         
         transfer_training_dataloader = data.DataLoader(dataset=transfer_finetune_dataset,
@@ -725,7 +725,7 @@ if __name__ == '__main__':
         model, _ = LLM_finetuning(model, transfer_training_dataloader, valid_iter, '../checkpoints/base-sudowoodo-p2v.pkl', optimizer, hp.n_epochs)
     else:
         model.load_state_dict(torch.load('../checkpoints/base-sudowoodo-p2v.pkl'))
-        ### transfering knowledge on sato ###
+        ### transfering knowledge on VizNet ###
     
         transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=114, max_length = 128)
         transfer_training_dataloader = data.DataLoader(dataset=transfer_finetune_dataset,

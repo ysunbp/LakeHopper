@@ -731,8 +731,8 @@ if __name__ == '__main__':
 
     
     if not os.path.exists('../checkpoints/doduo-v2s-base.pkl'):
-        ### Pre-train on Sato ###
-        print('Start pretraining on Sato')
+        ### Pre-train on VizNet ###
+        print('Start pretraining on VizNet')
         sato_train_dataset = SupAnnDatasetIndex(csv_data_path, lm=hp.lm, size=None, max_length = hp.max_len)
         
         sato_valid_dataset = SupAnnDatasetIndex(validation_path, lm=hp.lm, size=500, max_length = hp.max_len)
@@ -778,7 +778,7 @@ if __name__ == '__main__':
                                         shuffle=False,
                                         num_workers=0,
                                         collate_fn=testing_set.pad)
-    ### Fine-tune on sato ###
+    ### Fine-tune on Semtab ###
     LLM_evaluate(model, test_iter, '../checkpoints/doduo-v2s-base-finetuned.pkl', is_test=True, cur_best_loss=100)
 
     semtab_training_path = '../data/Semtab2019/semtab_train_0.csv'
@@ -805,7 +805,7 @@ if __name__ == '__main__':
                                         collate_fn=testing_set.pad)
 
     if not os.path.exists('../checkpoints/doduo-v2s-base-finetuned.pkl'):
-        print('Start initial fine-tuning on VizNet')
+        print('Start initial fine-tuning on Semtab')
         optimizer = AdamW(model.parameters(), lr=hp.lr)
         model, _ = LLM_finetuning(model, transfer_training_dataloader, valid_iter, hp.save_path, optimizer, hp.n_epochs)
         LLM_evaluate(model, test_iter, hp.save_path, is_test=True, cur_best_loss=100)
@@ -815,7 +815,7 @@ if __name__ == '__main__':
         model = base_model(hp, device=device, lm=hp.lm) # reload the model on the target data lake
         model.load_state_dict(torch.load('../checkpoints/doduo-v2s-base-finetuned.pkl'))
     
-    ### transfering knowledge on sato ###
+    ### transfering knowledge on Semtab ###
     print('Storing model at: ', hp.save_path)
     torch.save(model.state_dict(), hp.save_path)
     annotation_dataset = SupAnnDataset(semtab_training_path, lm=hp.lm, size=None, max_length = hp.max_len) # used for sample queries from GPT
