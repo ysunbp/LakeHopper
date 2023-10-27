@@ -727,7 +727,7 @@ if __name__ == '__main__':
 
     LLM_evaluate(model, test_data_iter, hp.save_path, is_test=True, cur_best_loss=100)
 
-    ### Fine-tune on sato ###
+    ### Fine-tune on VizNet ###
     print('Start initial fine-tuning on Sato')
     model.load_state_dict(torch.load(hp.save_path))
     transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=50, max_length = 128)
@@ -747,7 +747,7 @@ if __name__ == '__main__':
     optimizer = AdamW(model.parameters(), lr=hp.lr)
     model, _ = LLM_finetuning(model, transfer_training_dataloader, valid_iter, hp.save_path, optimizer, hp.n_epochs)
     
-    ### transfering knowledge on sato ###
+    ### transfering knowledge on VizNet ###
     
     transfer_finetune_dataset = SupAnnDatasetIndex(csv_data_path, lm='bert', size=50, max_length = 128)
     
@@ -758,7 +758,7 @@ if __name__ == '__main__':
                                         collate_fn=transfer_finetune_dataset.pad)
     
     previous_dataloaders = [transfer_training_dataloader]
-    base_model_path = hp.save_path # base pre-trained on PublicBI and Sato for 50 tables; you can modify the path if you stored a pre-trained model from the previous steps and the model is stored at the path different from the hp.save_path
+    base_model_path = hp.save_path # base pre-trained on PublicBI and VizNet for 50 tables; you can modify the path if you stored a pre-trained model from the previous steps and the model is stored at the path different from the hp.save_path
     model.load_state_dict(torch.load(base_model_path)) 
 
     torch.save(model.state_dict(), hp.save_path)
