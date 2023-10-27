@@ -21,7 +21,7 @@ $ pip install -r requirements.txt
 
 ## Reproduce the results (DODUO)
 
-In order to reproduce the results for DODUO, please follow these steps:
+In order to reproduce the results for LakeHopper on [DODUO](https://github.com/megagonlabs/doduo/), please follow these steps:
 
 1. Go to [scripts](./scripts) folder 
 2. Run the file [lakehopper-on-doduo-p2v.py](./scripts/lakehopper-on-doduo-p2v.py) or [lakehopper-on-doduo-v2s.py](./scripts/lakehopper-on-doduo-v2s.py).
@@ -29,7 +29,7 @@ In order to reproduce the results for DODUO, please follow these steps:
 
 ## Reproduce the results (Sudowoodo)
 
-In order to reproduce the results for Sudowoodo, please follow these steps:
+In order to reproduce the results for LakeHopper on [Sudowoodo](https://github.com/megagonlabs/sudowoodo/), please follow these steps:
 
 1. Go to [scripts](./scripts) folder 
 2. Run the file [lakehopper-on-sudo-p2v.py](./scripts/lakehopper-on-sudo-p2v.py) or [lakehopper-on-sudo-v2s.py](./scripts/lakehopper-on-sudo-v2s.py).
@@ -37,7 +37,7 @@ In order to reproduce the results for Sudowoodo, please follow these steps:
 
 ## Reproduce the results (RECA)
 
-In order to reproduce the results for RECA, please follow these steps:
+In order to reproduce the results for LakeHopper on [RECA](https://github.com/ysunbp/RECA-paper/), please follow these steps:
 
 1. Go to [scripts](./scripts) folder 
 2. Run the file [lakehopper-on-reca-p2v.py](./scripts/lakehopper-on-reca-p2v.py) or [lakehopper-on-reca-v2s.py](./scripts/lakehopper-on-reca-v2s.py).
