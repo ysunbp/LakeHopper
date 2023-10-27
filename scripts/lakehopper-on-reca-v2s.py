@@ -751,8 +751,8 @@ if __name__ == '__main__':
     test_path = '../data/RECA/2.jsonl'
 
     if not os.path.exists('../checkpoints/base-reca-v2s.pkl'):
-        ### Pre-train on Sato ###
-        print('Start pretraining on Sato')
+        ### Pre-train on VizNet ###
+        print('Start pretraining on VizNet')
         sato_train_dataset = SupAnnDatasetIndexSato(csv_data_path, size=None, max_length = hp.max_len, pickle_path = '/export/data/ysunbp/LLM-veri/data/reca-pickle/K1.pkl')
         
         sato_valid_dataset = SupAnnDatasetIndexSato(validation_path,  size=500, max_length = hp.max_len, pickle_path = '/export/data/ysunbp/LLM-veri/data/reca-pickle/K0.pkl')
@@ -801,7 +801,7 @@ if __name__ == '__main__':
                                         num_workers=0,
                                         collate_fn=testing_set.pad)
     LLM_evaluate(model, test_iter, hp.save_path, is_test=True, cur_best_loss=100)
-    ### Fine-tune on sato ###
+    ### Fine-tune on Semtab ###
     
     
     

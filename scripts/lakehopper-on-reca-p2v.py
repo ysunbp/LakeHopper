@@ -768,7 +768,7 @@ if __name__ == '__main__':
                                         num_workers=0,
                                         collate_fn=testing_set.pad)
     if not os.path.exists('../checkpoints/base-reca-p2v-finetuned.pkl'):
-        print('Start initial fine-tuning on Sato')
+        print('Start initial fine-tuning on VizNet')
         optimizer = AdamW(model.parameters(), lr=hp.lr)
         model, _ = LLM_finetuning(model, transfer_training_dataloader, valid_iter, hp.save_path, optimizer, hp.n_epochs)
         LLM_evaluate(model, test_iter, hp.save_path, is_test=True, cur_best_loss=100)
@@ -776,7 +776,7 @@ if __name__ == '__main__':
     else:
         model.load_state_dict(torch.load('../checkpoints/base-reca-p2v-finetuned.pkl'))
         
-    ### transfering knowledge on sato ###
+    ### transfering knowledge on VizNet ###
     print('Storing model at: ', hp.save_path)
     torch.save(model.state_dict(), hp.save_path)
     annotation_dataset = SupAnnDataset(sato_train_path, dict_path, size=None, max_length = hp.max_len, pickle_path = '/export/data/ysunbp/LLM-veri/data/reca-pickle/K1.pkl') # used for sample queries from GPT
