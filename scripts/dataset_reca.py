@@ -329,7 +329,7 @@ class SupAnnDatasetIndex(data.Dataset):
 
         if (size is not None) and size_ratio:
             skf = StratifiedKFold(n_splits=size) # use 1/10 data for validation/testing; here we use size to represent the ratio
-            for train_index, validation_index in skf.split(label_list, label_list):
+            for train_index, validation_index in skf.split(self.labels, self.labels):
                 splitted_indices = validation_index
                 break
             out_labels = []
